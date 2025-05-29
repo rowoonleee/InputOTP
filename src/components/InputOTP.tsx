@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import "@/styles/InputOTP.scss";
 
 const OTP_LENGTH = 6;
@@ -6,12 +6,19 @@ const OTP_LENGTH = 6;
 function InputOTP({
   onChange,
   onComplete,
+  isValid = true,
 }: {
-  onChange?: (value: string) => void;
-  onComplete?: (value: string) => void;
+  onChange?: (value: string[]) => void;
+  onComplete?: (value: string[]) => void;
+  isValid?: boolean;
 }) {
   const inputs = Array.from({ length: OTP_LENGTH }, () =>
     useRef<HTMLInputElement>(null)
+  );
+  const [otpValues, setOtpValues] = useState<string[]>(Array(6).fill(""));
+  const isAllFilled = useMemo(
+    () => otpValues.every((value) => value !== ""),
+    [otpValues]
   );
 
   useEffect(() => {
@@ -28,9 +35,6 @@ function InputOTP({
       firstEmptyIndex === -1 ? OTP_LENGTH - 1 : firstEmptyIndex
     ].current?.focus();
   };
-
-  const getOtpValue = () =>
-    inputs.map((ref) => ref.current?.value ?? "").join("");
 
   const handleKeyDown = (
     e: React.KeyboardEvent<HTMLInputElement>,
@@ -59,15 +63,16 @@ function InputOTP({
     e: React.ChangeEvent<HTMLInputElement>,
     index: number
   ) => {
-    const otpValue = getOtpValue();
-    onChange?.(otpValue);
+    const otpValues = inputs.map((ref) => ref.current?.value ?? "");
+    setOtpValues(otpValues);
+    onChange?.(otpValues);
     // 입력 시 다음 칸으로 이동 (마지막 칸인 경우 onComplete 호출)
     if (e.target.value !== "") {
       const nextInput = inputs[index + 1];
       if (nextInput) {
         nextInput.current?.focus();
       } else {
-        onComplete?.(otpValue);
+        onComplete?.(otpValues);
       }
     }
   };
@@ -81,6 +86,8 @@ function InputOTP({
           index={index}
           handleKeyDown={handleKeyDown}
           handleChange={handleChange}
+          isValid={isValid}
+          isAllFilled={isAllFilled}
         />
       ))}
     </div>
@@ -92,6 +99,8 @@ function InputSingleOTP({
   index,
   handleKeyDown,
   handleChange,
+  isValid = true,
+  isAllFilled,
 }: {
   inputRef: React.RefObject<HTMLInputElement | null>;
   index: number;
@@ -100,11 +109,20 @@ function InputSingleOTP({
     index: number
   ) => void;
   handleChange: (e: React.ChangeEvent<HTMLInputElement>, index: number) => void;
+  isValid?: boolean;
+  isAllFilled?: boolean;
 }) {
   return (
     <input
       ref={inputRef}
-      className="single-input"
+      // TODO: 스타일링 예시. 스타일링이 변경되면 isAllFilled와 isValid 관련 코드 삭제해야 함
+      className={`single-input ${
+        inputRef.current?.value
+          ? isAllFilled && !isValid
+            ? "invalid"
+            : "valid"
+          : ""
+      }`}
       maxLength={1}
       type="text"
       inputMode="numeric"
