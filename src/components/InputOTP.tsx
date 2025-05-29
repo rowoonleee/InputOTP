@@ -19,11 +19,13 @@ interface InputOTPProps {
 function InputOTP(props: InputOTPProps) {
   const { onChange, onComplete, isValid = true } = props;
 
-  const inputs = Array.from({ length: OTP_LENGTH }, () =>
-    useRef<HTMLInputElement>(null)
-  );
   const [otpValues, setOtpValues] = useState<string[]>(
     Array(OTP_LENGTH).fill("")
+  );
+  const [focusedIndex, setFocusedIndex] = useState(0);
+
+  const inputs = Array.from({ length: OTP_LENGTH }, () =>
+    useRef<HTMLInputElement>(null)
   );
   const isAllFilled = useMemo(
     () => otpValues.every((value) => value !== ""),
@@ -31,20 +33,11 @@ function InputOTP(props: InputOTPProps) {
   );
 
   useEffect(() => {
-    focusInput(); // 컴포넌트 마운트 -> 바로 첫 번째 칸 포커스
+    inputs[focusedIndex].current?.focus(); // 컴포넌트 마운트 -> 바로 첫 번째 칸 포커스
   }, []);
 
   const getFirstEmptyIndex = () =>
     inputs.findIndex((ref) => ref.current?.value === "");
-
-  // 모든 칸이 입력되지 않은 경우 -> 현재 입력되지 않은 첫 번째 칸 포커스
-  // 모든 칸이 입력된 경우 -> 마지막 칸 포커스
-  const focusInput = () => {
-    const firstEmptyIndex = getFirstEmptyIndex();
-    inputs[
-      firstEmptyIndex === -1 ? OTP_LENGTH - 1 : firstEmptyIndex
-    ].current?.focus();
-  };
 
   const handleKeyDown = (
     e: React.KeyboardEvent<HTMLInputElement>,
@@ -52,8 +45,9 @@ function InputOTP(props: InputOTPProps) {
   ) => {
     // backspace 시 이전 칸으로 이동 (마지막 칸에서 입력 내용이 있는 경우 제외)
     if (e.key === "Backspace" && e.currentTarget.value === "") {
-      const prevInput = inputs[index - 1];
-      if (prevInput) prevInput.current?.focus();
+      const newFocusedIndex = Math.max(0, index - 1);
+      setFocusedIndex(newFocusedIndex);
+      inputs[newFocusedIndex].current?.focus();
     }
     // 마지막 칸에서 숫자 입력 시 업데이트 (기존 값 지움)
     if (index === OTP_LENGTH - 1 && /^[0-9]$/.test(e.key)) {
@@ -84,10 +78,11 @@ function InputOTP(props: InputOTPProps) {
 
     updateOtpValues();
 
-    // 입력 시 다음 칸으로 이동 (마지막 칸인 경우 onComplete 호출)
+    // 입력 시 다음 칸으로 이동
     if (e.target.value !== "") {
-      const nextInput = inputs[index + 1];
-      if (nextInput) nextInput.current?.focus();
+      const newFocusedIndex = Math.min(index + 1, OTP_LENGTH - 1);
+      setFocusedIndex(newFocusedIndex);
+      inputs[newFocusedIndex].current?.focus();
     }
   };
 
@@ -110,14 +105,16 @@ function InputOTP(props: InputOTPProps) {
 
     updateOtpValues();
 
-    const inputRefToFocus = inputs[index + i]
-      ? inputs[index + i]
-      : inputs[OTP_LENGTH - 1];
-    inputRefToFocus.current?.focus();
+    const newFocusedIndex = Math.min(index + i, OTP_LENGTH - 1);
+    setFocusedIndex(newFocusedIndex);
+    inputs[newFocusedIndex].current?.focus();
   };
 
   return (
-    <div className="container" onMouseDown={focusInput}>
+    <div
+      className="container"
+      onMouseDown={() => inputs[focusedIndex]?.current?.focus()}
+    >
       {inputs.map((ref, index) => (
         <InputSingleOTP
           key={index}
@@ -126,6 +123,7 @@ function InputOTP(props: InputOTPProps) {
           handleKeyDown={handleKeyDown}
           handleChange={handleChange}
           handlePaste={handlePaste}
+          isFocusable={focusedIndex === index}
           isValid={isValid}
           isAllFilled={isAllFilled}
         />
@@ -146,6 +144,7 @@ interface InputSingleOTPProps {
     e: React.ClipboardEvent<HTMLInputElement>,
     index: number
   ) => void;
+  isFocusable: boolean;
   isValid?: boolean;
   isAllFilled?: boolean;
 }
@@ -157,6 +156,7 @@ function InputSingleOTP(props: InputSingleOTPProps) {
     handleKeyDown,
     handleChange,
     handlePaste,
+    isFocusable,
     isValid = true,
     isAllFilled,
   } = props;
@@ -176,6 +176,7 @@ function InputSingleOTP(props: InputSingleOTPProps) {
       maxLength={1}
       type="text"
       inputMode="numeric"
+      tabIndex={isFocusable ? 0 : -1}
       onMouseDown={(e) => {
         e.preventDefault(); // 직접 포커스 방지
       }}
