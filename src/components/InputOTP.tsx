@@ -3,6 +3,13 @@ import "@/styles/InputOTP.scss";
 
 const OTP_LENGTH = 6;
 
+/**
+ * OTP(One-Time Password) 6자리 숫자 입력 컴포넌트입니다.
+ *
+ * @param onChange - 각 자리의 값이 변경될 때 호출되는 콜백. 현재 입력 상태를 문자 배열로 반환합니다.
+ * @param onComplete - 모든 자리가 입력 완료되었을 때 호출되는 콜백. 최종 입력 상태를 문자 배열을 반환합니다.
+ * @param isValid - 입력된 OTP가 유효한지 여부를 나타내는 플래그입니다. 입력 필드에 스타일을 적용하는 용도로 사용됩니다.
+ */
 interface InputOTPProps {
   onChange?: (value: string[]) => void;
   onComplete?: (value: string[]) => void;
