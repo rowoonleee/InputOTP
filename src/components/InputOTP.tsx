@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useMemo, createRef, useCallback } from "react";
 import "@/styles/InputOTP.scss";
 
 const OTP_LENGTH = 6;
@@ -24,91 +24,95 @@ function InputOTP(props: InputOTPProps) {
   );
   const [focusedIndex, setFocusedIndex] = useState(0);
 
-  const inputs = Array.from({ length: OTP_LENGTH }, () =>
-    useRef<HTMLInputElement>(null)
+  const inputs = useMemo(
+    () =>
+      Array.from({ length: OTP_LENGTH }, () => createRef<HTMLInputElement>()),
+    []
   );
   const isAllFilled = useMemo(
     () => otpValues.every((value) => value !== ""),
     [otpValues]
   );
+  const firstEmptyIndex = useMemo(
+    () => otpValues.findIndex((v) => v === ""),
+    [otpValues]
+  );
+
+  const getOtpValues = useCallback(
+    () => inputs.map((ref) => ref.current?.value ?? ""),
+    [inputs]
+  );
 
   useEffect(() => {
-    inputs[focusedIndex].current?.focus(); // 컴포넌트 마운트 -> 바로 첫 번째 칸 포커스
-  }, []);
+    inputs[focusedIndex].current?.focus();
+  }, [inputs, focusedIndex]);
 
-  const getFirstEmptyIndex = () =>
-    inputs.findIndex((ref) => ref.current?.value === "");
+  useEffect(() => {
+    if (firstEmptyIndex === -1) onComplete?.(getOtpValues());
+  }, [firstEmptyIndex, onComplete, getOtpValues]);
 
-  const handleKeyDown = (
-    e: React.KeyboardEvent<HTMLInputElement>,
-    index: number
-  ) => {
-    // backspace 시 이전 칸으로 이동 (마지막 칸에서 입력 내용이 있는 경우 제외)
-    if (e.key === "Backspace" && e.currentTarget.value === "") {
-      const newFocusedIndex = Math.max(0, index - 1);
-      setFocusedIndex(newFocusedIndex);
-      inputs[newFocusedIndex].current?.focus();
-    }
-    // 마지막 칸에서 숫자 입력 시 업데이트 (기존 값 지움)
-    if (index === OTP_LENGTH - 1 && /^[0-9]$/.test(e.key)) {
-      const input = inputs[index].current;
-      if (input) input.value = "";
-    }
-  };
-
-  const updateOtpValues = () => {
-    const newValues = inputs.map((ref) => ref.current?.value ?? "");
+  const updateOtpValues = useCallback(() => {
+    const newValues = getOtpValues();
     setOtpValues(newValues);
     onChange?.(newValues);
-    if (getFirstEmptyIndex() === -1) onComplete?.(newValues);
-  };
+  }, [getOtpValues, setOtpValues, onChange]);
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement>,
-    index: number
-  ) => {
-    // 숫자 이외의 입력 방지
-    if (e.target.value !== "" && !/^[0-9]$/.test(e.target.value)) {
-      // 마지막 칸에서 숫자 + 문자 입력 시 다 지워지는 문제 방지
-      const firstDigit = e.target.value.match(/[0-9]/)?.[0] ?? "";
-      const input = inputs[index].current;
-      if (input) input.value = firstDigit;
-      return;
-    }
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>, index: number) => {
+      // backspace 시 이전 칸으로 이동 (마지막 칸에서 입력 내용이 있는 경우 제외)
+      if (e.key === "Backspace" && e.currentTarget.value === "") {
+        setFocusedIndex(Math.max(0, index - 1));
+      }
+      // 마지막 칸에서 숫자 입력 시 업데이트 (기존 값 지움)
+      if (index === OTP_LENGTH - 1 && /^[0-9]$/.test(e.key)) {
+        const input = inputs[index].current;
+        if (input) input.value = "";
+      }
+    },
+    [setFocusedIndex, inputs]
+  );
 
-    updateOtpValues();
+  const handleChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
+      // 숫자 이외의 입력 방지
+      if (e.target.value !== "" && !/^[0-9]$/.test(e.target.value)) {
+        // 마지막 칸에서 숫자 + 문자 입력 시 다 지워지는 문제 방지
+        const firstDigit = e.target.value.match(/[0-9]/)?.[0] ?? "";
+        const input = inputs[index].current;
+        if (input) input.value = firstDigit;
+        return;
+      }
 
-    // 입력 시 다음 칸으로 이동
-    if (e.target.value !== "") {
-      const newFocusedIndex = Math.min(index + 1, OTP_LENGTH - 1);
-      setFocusedIndex(newFocusedIndex);
-      inputs[newFocusedIndex].current?.focus();
-    }
-  };
+      updateOtpValues();
 
-  const handlePaste = (
-    e: React.ClipboardEvent<HTMLInputElement>,
-    index: number
-  ) => {
-    e.preventDefault();
-    const pastedValue = e.clipboardData.getData("text");
-    const onlyNumber = pastedValue.match(/[0-9]/g);
-    if (!onlyNumber) return;
+      // 입력 시 다음 칸으로 이동
+      if (e.target.value !== "") {
+        setFocusedIndex(Math.min(index + 1, OTP_LENGTH - 1));
+      }
+    },
+    [inputs, updateOtpValues, setFocusedIndex]
+  );
 
-    const emptyInputCount = OTP_LENGTH - getFirstEmptyIndex();
-    let i;
-    for (i = 0; i < emptyInputCount; i++) {
-      if (onlyNumber[i] === undefined) break;
-      const input = inputs[index + i]?.current;
-      if (input) input.value = onlyNumber[i];
-    }
+  const handlePaste = useCallback(
+    (e: React.ClipboardEvent<HTMLInputElement>, index: number) => {
+      e.preventDefault();
+      const pastedValue = e.clipboardData.getData("text");
+      const onlyNumber = pastedValue.match(/[0-9]/g);
+      if (!onlyNumber) return;
 
-    updateOtpValues();
+      const emptyInputCount = OTP_LENGTH - firstEmptyIndex;
+      let i;
+      for (i = 0; i < emptyInputCount; i++) {
+        if (onlyNumber[i] === undefined) break;
+        const input = inputs[index + i]?.current;
+        if (input) input.value = onlyNumber[i];
+      }
 
-    const newFocusedIndex = Math.min(index + i, OTP_LENGTH - 1);
-    setFocusedIndex(newFocusedIndex);
-    inputs[newFocusedIndex].current?.focus();
-  };
+      updateOtpValues();
+      setFocusedIndex(Math.min(index + i, OTP_LENGTH - 1));
+    },
+    [inputs, firstEmptyIndex, updateOtpValues, setFocusedIndex]
+  );
 
   return (
     <div
