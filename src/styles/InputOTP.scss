@@ -1,0 +1,15 @@
+.container {
+  display: flex;
+  gap: 10px;
+}
+
+.single-input {
+  background-color: #eef0f2;
+  width: 52px;
+  padding-top: 14px;
+  padding-bottom: 14px;
+  border-radius: 10px;
+  text-align: center;
+  font-weight: bold;
+  font-size: 24px;
+}
