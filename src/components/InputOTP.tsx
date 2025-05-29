@@ -40,8 +40,6 @@ function InputOTP({
     e: React.KeyboardEvent<HTMLInputElement>,
     index: number
   ) => {
-    // 숫자 및 삭제 입력이 아닌 경우 무시
-    // TODO : Delete 도 처리해야 할까?
     // backspace 시 이전 칸으로 이동 (마지막 칸에서 입력 내용이 있는 경우 제외)
     if (e.key === "Backspace" && e.currentTarget.value === "") {
       const prevInput = inputs[index - 1];
@@ -59,7 +57,7 @@ function InputOTP({
     index: number
   ) => {
     // 숫자 이외의 입력 방지
-    if (!/^[0-9]$/.test(e.target.value)) {
+    if (e.target.value !== "" && !/^[0-9]$/.test(e.target.value)) {
       // 마지막 칸에서 숫자 + 문자 입력 시 다 지워지는 문제 방지
       const firstDigit = e.target.value.match(/[0-9]/)?.[0] ?? "";
       const input = inputs[index].current;
@@ -119,7 +117,7 @@ function InputSingleOTP({
   return (
     <input
       ref={inputRef}
-      // TODO: 스타일링 예시. 스타일링이 변경되면 isAllFilled와 isValid 관련 코드 삭제해야 함
+      // TODO: 스타일링 예시입니다. 스타일링이 변경되면 isAllFilled와 isValid 관련 코드를 삭제해야 합니다.
       className={`single-input ${
         inputRef.current?.value
           ? isAllFilled && !isValid
