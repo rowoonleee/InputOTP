@@ -3,7 +3,13 @@ import "@/styles/InputOTP.scss";
 
 const OTP_LENGTH = 6;
 
-function InputOTP() {
+function InputOTP({
+  onChange,
+  onComplete,
+}: {
+  onChange?: (value: string) => void;
+  onComplete?: (value: string) => void;
+}) {
   const inputs = Array.from({ length: OTP_LENGTH }, () =>
     useRef<HTMLInputElement>(null)
   );
@@ -23,6 +29,9 @@ function InputOTP() {
     ].current?.focus();
   };
 
+  const getOtpValue = () =>
+    inputs.map((ref) => ref.current?.value ?? "").join("");
+
   const handleKeyDown = (
     e: React.KeyboardEvent<HTMLInputElement>,
     index: number
@@ -40,7 +49,7 @@ function InputOTP() {
       if (prevInput) prevInput.current?.focus();
     }
     // 마지막 칸에서 숫자 입력 시 업데이트 (기존 값 지움)
-    if (index === OTP_LENGTH - 1) {
+    if (index === OTP_LENGTH - 1 && e.key !== "Backspace") {
       const input = inputs[index].current;
       if (input) input.value = "";
     }
@@ -50,10 +59,16 @@ function InputOTP() {
     e: React.ChangeEvent<HTMLInputElement>,
     index: number
   ) => {
-    // 입력 시 다음 칸으로 이동
+    const otpValue = getOtpValue();
+    onChange?.(otpValue);
+    // 입력 시 다음 칸으로 이동 (마지막 칸인 경우 onComplete 호출)
     if (e.target.value !== "") {
       const nextInput = inputs[index + 1];
-      if (nextInput) nextInput.current?.focus();
+      if (nextInput) {
+        nextInput.current?.focus();
+      } else {
+        onComplete?.(otpValue);
+      }
     }
   };
 

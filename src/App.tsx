@@ -6,7 +6,14 @@ function App() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
       <InputOTPDemo /> {/* Shadcn component */}
-      <InputOTP />
+      <InputOTP
+        onChange={(value) => {
+          console.log("onChange", value);
+        }}
+        onComplete={(value) => {
+          console.log("onComplete", value);
+        }}
+      />
     </div>
   );
 }
