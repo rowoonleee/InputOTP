@@ -42,18 +42,13 @@ function InputOTP({
   ) => {
     // 숫자 및 삭제 입력이 아닌 경우 무시
     // TODO : Delete 도 처리해야 할까?
-    // TODO : 한글 입력이 막아지지 않음
-    if (!/[0-9]/.test(e.key) && e.key !== "Backspace" && e.key !== "Delete") {
-      e.preventDefault();
-      return;
-    }
     // backspace 시 이전 칸으로 이동 (마지막 칸에서 입력 내용이 있는 경우 제외)
     if (e.key === "Backspace" && e.currentTarget.value === "") {
       const prevInput = inputs[index - 1];
       if (prevInput) prevInput.current?.focus();
     }
     // 마지막 칸에서 숫자 입력 시 업데이트 (기존 값 지움)
-    if (index === OTP_LENGTH - 1 && e.key !== "Backspace") {
+    if (index === OTP_LENGTH - 1 && /^[0-9]$/.test(e.key)) {
       const input = inputs[index].current;
       if (input) input.value = "";
     }
@@ -63,6 +58,15 @@ function InputOTP({
     e: React.ChangeEvent<HTMLInputElement>,
     index: number
   ) => {
+    // 숫자 이외의 입력 방지
+    if (!/^[0-9]$/.test(e.target.value)) {
+      // 마지막 칸에서 숫자 + 문자 입력 시 다 지워지는 문제 방지
+      const firstDigit = e.target.value.match(/[0-9]/)?.[0] ?? "";
+      const input = inputs[index].current;
+      if (input) input.value = firstDigit;
+      return;
+    }
+
     const otpValues = inputs.map((ref) => ref.current?.value ?? "");
     setOtpValues(otpValues);
     onChange?.(otpValues);
