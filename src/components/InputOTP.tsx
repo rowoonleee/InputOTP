@@ -3,19 +3,21 @@ import "@/styles/InputOTP.scss";
 
 const OTP_LENGTH = 6;
 
-function InputOTP({
-  onChange,
-  onComplete,
-  isValid = true,
-}: {
+interface InputOTPProps {
   onChange?: (value: string[]) => void;
   onComplete?: (value: string[]) => void;
   isValid?: boolean;
-}) {
+}
+
+function InputOTP(props: InputOTPProps) {
+  const { onChange, onComplete, isValid = true } = props;
+
   const inputs = Array.from({ length: OTP_LENGTH }, () =>
     useRef<HTMLInputElement>(null)
   );
-  const [otpValues, setOtpValues] = useState<string[]>(Array(6).fill(""));
+  const [otpValues, setOtpValues] = useState<string[]>(
+    Array(OTP_LENGTH).fill("")
+  );
   const isAllFilled = useMemo(
     () => otpValues.every((value) => value !== ""),
     [otpValues]
@@ -25,12 +27,13 @@ function InputOTP({
     focusInput(); // 컴포넌트 마운트 -> 바로 첫 번째 칸 포커스
   }, []);
 
+  const getFirstEmptyIndex = () =>
+    inputs.findIndex((ref) => ref.current?.value === "");
+
   // 모든 칸이 입력되지 않은 경우 -> 현재 입력되지 않은 첫 번째 칸 포커스
   // 모든 칸이 입력된 경우 -> 마지막 칸 포커스
   const focusInput = () => {
-    const firstEmptyIndex = inputs.findIndex(
-      (ref) => ref.current?.value === ""
-    );
+    const firstEmptyIndex = getFirstEmptyIndex();
     inputs[
       firstEmptyIndex === -1 ? OTP_LENGTH - 1 : firstEmptyIndex
     ].current?.focus();
@@ -52,6 +55,13 @@ function InputOTP({
     }
   };
 
+  const updateOtpValues = () => {
+    const newValues = inputs.map((ref) => ref.current?.value ?? "");
+    setOtpValues(newValues);
+    onChange?.(newValues);
+    if (getFirstEmptyIndex() === -1) onComplete?.(newValues);
+  };
+
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement>,
     index: number
@@ -65,18 +75,38 @@ function InputOTP({
       return;
     }
 
-    const otpValues = inputs.map((ref) => ref.current?.value ?? "");
-    setOtpValues(otpValues);
-    onChange?.(otpValues);
+    updateOtpValues();
+
     // 입력 시 다음 칸으로 이동 (마지막 칸인 경우 onComplete 호출)
     if (e.target.value !== "") {
       const nextInput = inputs[index + 1];
-      if (nextInput) {
-        nextInput.current?.focus();
-      } else {
-        onComplete?.(otpValues);
-      }
+      if (nextInput) nextInput.current?.focus();
     }
+  };
+
+  const handlePaste = (
+    e: React.ClipboardEvent<HTMLInputElement>,
+    index: number
+  ) => {
+    e.preventDefault();
+    const pastedValue = e.clipboardData.getData("text");
+    const onlyNumber = pastedValue.match(/[0-9]/g);
+    if (!onlyNumber) return;
+
+    const emptyInputCount = OTP_LENGTH - getFirstEmptyIndex();
+    let i;
+    for (i = 0; i < emptyInputCount; i++) {
+      if (onlyNumber[i] === undefined) break;
+      const input = inputs[index + i]?.current;
+      if (input) input.value = onlyNumber[i];
+    }
+
+    updateOtpValues();
+
+    const inputRefToFocus = inputs[index + i]
+      ? inputs[index + i]
+      : inputs[OTP_LENGTH - 1];
+    inputRefToFocus.current?.focus();
   };
 
   return (
@@ -88,6 +118,7 @@ function InputOTP({
           index={index}
           handleKeyDown={handleKeyDown}
           handleChange={handleChange}
+          handlePaste={handlePaste}
           isValid={isValid}
           isAllFilled={isAllFilled}
         />
@@ -96,14 +127,7 @@ function InputOTP({
   );
 }
 
-function InputSingleOTP({
-  inputRef,
-  index,
-  handleKeyDown,
-  handleChange,
-  isValid = true,
-  isAllFilled,
-}: {
+interface InputSingleOTPProps {
   inputRef: React.RefObject<HTMLInputElement | null>;
   index: number;
   handleKeyDown: (
@@ -111,20 +135,37 @@ function InputSingleOTP({
     index: number
   ) => void;
   handleChange: (e: React.ChangeEvent<HTMLInputElement>, index: number) => void;
+  handlePaste: (
+    e: React.ClipboardEvent<HTMLInputElement>,
+    index: number
+  ) => void;
   isValid?: boolean;
   isAllFilled?: boolean;
-}) {
+}
+
+function InputSingleOTP(props: InputSingleOTPProps) {
+  const {
+    inputRef,
+    index,
+    handleKeyDown,
+    handleChange,
+    handlePaste,
+    isValid = true,
+    isAllFilled,
+  } = props;
+
   return (
     <input
       ref={inputRef}
-      // TODO: 스타일링 예시입니다. 스타일링이 변경되면 isAllFilled와 isValid 관련 코드를 삭제해야 합니다.
-      className={`single-input ${
-        inputRef.current?.value
-          ? isAllFilled && !isValid
-            ? "invalid"
-            : "valid"
-          : ""
-      }`}
+      className="single-input"
+      // TODO: 스타일링 예시입니다. 필요 없다면 isAllFilled와 isValid 관련 코드, InputOTP.scss에서 valid/invalid 스타일 지정한 부분을 삭제해야 합니다.
+      //   className={`single-input ${
+      //     inputRef.current?.value
+      //       ? isAllFilled && !isValid
+      //         ? "invalid"
+      //         : "valid"
+      //       : ""
+      //   }`}
       maxLength={1}
       type="text"
       inputMode="numeric"
@@ -133,6 +174,7 @@ function InputSingleOTP({
       }}
       onKeyDown={(e) => handleKeyDown(e, index)}
       onChange={(e) => handleChange(e, index)}
+      onPaste={(e) => handlePaste(e, index)}
     />
   );
 }
